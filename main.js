@@ -1,9 +1,11 @@
 // TODO: Keep the while at all costs
 // TODO: ./ urls
 // TODO: ../ urls
-// TODO: Max depth
 // TODO: DIFF the files and throw it away if it is the same file.
 // TODO: Command line options
+// TODO: MAX_URLS
+
+const startTime = new Date();
 
 const axios = require("axios");
 const { createWriteStream, existsSync } = require("fs");
@@ -21,7 +23,8 @@ const entryPoint = "https://jakub.dev/";
 
 const settings = {
     SAME_DOMAIN: false,
-    MAX_DEPTH: 3
+    MAX_DEPTH: 1,
+    MAX_URLS: -1
 }
 
 const downloadFile = async (url) => {
@@ -51,15 +54,19 @@ const downloadFile = async (url) => {
     }
 }
 
-const getData = async (url) => {
+const getData = async ({ url, depth }) => {
+
+    // Too deep (+1 for images)
+    if (depth > settings.MAX_DEPTH + 1) return null;
+
     let res;
 
     try {
         res = await axios.get(url);
-        console.log(`${res.status} - ${url}`);
+        console.log(`${res.status} - D:${depth} - ${url}`);
     }
     catch (e) {
-        console.log(`${e.response && e.response.status ? e.response.status : "Err"} - ${url}`);
+        console.log(`${e.response && e.response.status ? e.response.status : "Err"} - D:${depth} - ${url}`);
         return;
     }
 
@@ -82,6 +89,9 @@ const getData = async (url) => {
             });
         }
 
+        // Too deep
+        if (depth > settings.MAX_DEPTH) return null;
+
         // Urls
         const urlResult = res.data.match(urlRegex)
         if (urlResult) {
@@ -100,8 +110,9 @@ const getData = async (url) => {
                 if (!correctUrl || arrayOfUrlsToCheck.includes(correctUrl)) {
                     return;
                 }
-                
+
                 arrayOfUrlsToCheck.push(correctUrl);
+                arrayOfUrlItems.push({ url: correctUrl, depth: depth + 1 });
             });
         }
 
@@ -125,6 +136,7 @@ const getData = async (url) => {
                 }
 
                 arrayOfUrlsToCheck.push(correctUrl);
+                arrayOfUrlItems.push({ url: correctUrl, depth: depth + 1 });
             });
         }
 
@@ -179,17 +191,19 @@ const getCorrectUrl = (urlObject, isImage = false) => {
 }
 
 const main = async () => {
-    await getData(entryPoint);
+    await getData({ url: entryPoint, depth: 0 });
 
+    // Looping through the URLs to crawl
     let urlIndex = 0;
-    while (urlIndex !== arrayOfUrlsToCheck.length) {
-        const urlItem = arrayOfUrlsToCheck[urlIndex];
+    while (urlIndex !== arrayOfUrlItems.length) {
+        const urlItem = arrayOfUrlItems[urlIndex];
 
         await getData(urlItem);
 
         urlIndex++;
     }
 
+    // Looping through the images to scrape
     let imgIndex = 0;
     while (imgIndex !== arrayOfMediaToDownload.length) {
         const imgItem = arrayOfMediaToDownload[imgIndex];
@@ -199,6 +213,10 @@ const main = async () => {
 
         imgIndex++;
     }
+
+    const stopTime = new Date();
+    const totalRunTime = Math.round((stopTime - startTime) / 1000);
+    console.log(`${arrayOfUrlItems.length} urls crawled and ${arrayOfMediaToDownload.length} media files scraped with depth ${settings.MAX_DEPTH} and entry point ${entryPoint} in ${totalRunTime} seconds!`);
 }
 
 main();
