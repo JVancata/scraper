@@ -273,7 +273,7 @@ const main = async () => {
 
     const stopTime = new Date();
     const totalRunTime = Math.round((stopTime - startTime) / 1000);
-    console.log(`${arrayOfUrlItems.length} urls crawled and ${arrayOfMediaToDownload.length} media files scraped with depth ${settings.MAX_DEPTH} and entry point ${entryPoint} in ${totalRunTime} seconds!`);
+    console.log(`${arrayOfUrlItems.length} urls found and ${arrayOfMediaToDownload.length} media files scraped with depth ${settings.MAX_DEPTH} and entry point ${entryPoint} in ${totalRunTime} seconds!`);
 }
 
 main();
