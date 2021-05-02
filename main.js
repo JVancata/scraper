@@ -1,3 +1,4 @@
+// These features would be a nice plus:
 // TODO: Keep the while at all costs
 // TODO: ./ urls
 // TODO: ../ urls
@@ -10,7 +11,6 @@ const startTime = new Date();
 const axios = require("axios");
 const { createWriteStream, existsSync } = require("fs");
 
-//const urlRegex = /(http[s]:\/\/[a-zA-Z0-9.]*[.][a-z]*[a-zA-Z0-9\/?+\-%=]*)|(["']([a-zA-Z0-9 \-\/.',ěščřžýáí=])*.(html|htm|php)["'])/gi;
 const urlRegex = /(http[s]:\/\/[a-zA-Z0-9.]*[.][a-z]*[a-zA-Z0-9\/?+\-%=.]*)/gi;
 const supportUrlRegex = /href="[a-zA-Z0-9\/?+\-%=.]*"/gi;
 const imgRegex = /([a-zA-Z0-9 \-.',ěščřžýáí=\/])+\.(jpg|png|jpeg|gif)/gi;
@@ -19,13 +19,67 @@ const arrayOfUrlsToCheck = [];
 const arrayOfUrlItems = [];
 const arrayOfMediaToDownload = [];
 
-const entryPoint = "https://jakub.dev/";
+// Parsing the entry arguments
+const arguments = process.argv;
 
+if (!Array.isArray(arguments)) {
+    console.log("Fatal error! Exiting process...");
+    process.exit();
+}
+
+// Default
 const settings = {
-    SAME_DOMAIN: false,
+    SAME_DOMAIN: true,
     MAX_DEPTH: 1,
     MAX_URLS: -1
 }
+
+let entryPoint = arguments[arguments.length - 1];
+
+arguments.forEach((argument, index) => {
+    let nextArgument = "";
+    let parsed = 0;
+    switch (argument) {
+        case "-help":
+            console.log(`Usage: node main.js [options] [entryPoint]
+Options:
+-s - do not restrict search to only entry point domain
+-m - sets the maximum number of urls to check, -1 is for unlimited. Defaults to ${settings.MAX_URLS}
+-d - maximal depth of urls to crawl, defaults to ${settings.MAX_URLS}
+-help - prints this dialog.`);
+            process.exit();
+            break;
+        case "-s":
+            settings.SAME_DOMAIN = false;
+            break;
+        case "-m":
+            nextArgument = arguments[index + 1];
+            parsed = parseInt(nextArgument);
+            if (!Number.isInteger(parsed) || (parsed < 0 && parsed !== -1)) {
+                console.log(`Argument -m must be a valid number from 1 to ${Number.MAX_SAFE_INTEGER} (or -1)! Exiting process...`);
+                process.exit();
+            }
+            settings.MAX_URLS = parsed;
+            break;
+        case "-d":
+            nextArgument = arguments[index + 1];
+            parsed = parseInt(nextArgument);
+            if (!Number.isInteger(parsed) || parsed < 0) {
+                console.log(`Argument -d must be a valid number from 1 to ${Number.MAX_SAFE_INTEGER}! Exiting process...`);
+                process.exit();
+            }
+            settings.MAX_DEPTH = parsed;
+            break;
+    }
+});
+
+if (!entryPoint.startsWith("http")) {
+    console.log("Entry point must be a http(s) URL! Try -help for help. Exiting process...");
+    process.exit();
+}
+
+console.log("Entry point is set as: ", entryPoint);
+//console.log("Settings: ", settings);
 
 const downloadFile = async (url) => {
     try {
@@ -193,9 +247,12 @@ const getCorrectUrl = (urlObject, isImage = false) => {
 const main = async () => {
     await getData({ url: entryPoint, depth: 0 });
 
+    // Max URLS limit
+    const limit = settings.MAX_URLS === -1 ? Number.MAX_SAFE_INTEGER : settings.MAX_URLS;
+
     // Looping through the URLs to crawl
     let urlIndex = 0;
-    while (urlIndex !== arrayOfUrlItems.length) {
+    while (urlIndex !== arrayOfUrlItems.length && urlIndex < limit) {
         const urlItem = arrayOfUrlItems[urlIndex];
 
         await getData(urlItem);
